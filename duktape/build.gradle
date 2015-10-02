@@ -11,6 +11,8 @@ model {
   }
   android.ndk {
     moduleName = 'duktape'
+
+    CFlags += '-Os'
   }
 }
 
