@@ -15,7 +15,11 @@
  */
 package com.squareup.duktape;
 
+import android.content.Context;
 import android.support.annotation.Keep;
+
+import com.getkeepsafe.relinker.ReLinker;
+
 import java.io.Closeable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -25,155 +29,166 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-/** A simple EMCAScript (Javascript) interpreter. */
+/**
+ * A simple EMCAScript (Javascript) interpreter.
+ */
 public final class Duktape implements Closeable {
-  static {
-    System.loadLibrary("duktape");
-  }
+    /**
+     * Create a new interpreter instance. Calls to this method <strong>must</strong> matched with
+     * calls to {@link #close()} on the returned instance to avoid leaking native memory.
+     */
+    public static Duktape create(Context appContext) {
+        ReLinker.loadLibrary(appContext, "duktape");
 
-  /**
-   * Create a new interpreter instance. Calls to this method <strong>must</strong> matched with
-   * calls to {@link #close()} on the returned instance to avoid leaking native memory.
-   */
-  public static Duktape create() {
-    long context = createContext();
-    if (context == 0) {
-      throw new OutOfMemoryError("Cannot create Duktape instance");
-    }
-    return new Duktape(context);
-  }
+        long context = createContext();
+        if (context == 0) {
+            throw new OutOfMemoryError("Cannot create Duktape instance");
+        }
 
-  private long context;
-
-  private Duktape(long context) {
-    this.context = context;
-  }
-
-  /**
-   * Evaluate {@code script} and return a result. {@code fileName} will be used in error
-   * reporting. Note that the result must be one of the supported Java types or the call will
-   * return null.
-   *
-   * @throws DuktapeException if there is an error evaluating the script.
-   */
-  public synchronized Object evaluate(String script, String fileName) {
-    return evaluate(context, script, fileName);
-  }
-  /**
-   * Evaluate {@code script} and return a result. Note that the result must be one of the
-   * supported Java types or the call will return null.
-   *
-   * @throws DuktapeException if there is an error evaluating the script.
-   */
-  public synchronized Object evaluate(String script) {
-    return evaluate(context, script, "?");
-  }
-
-  /**
-   * Provides {@code object} to JavaScript as a global object called {@code name}. {@code type}
-   * defines the interface implemented by {@code object} that will be accessible to JavaScript.
-   * {@code type} must be an interface that does not extend any other interfaces, and cannot define
-   * any overloaded methods.
-   * <p>Methods of the interface may return {@code void} or any of the following supported argument
-   * types: {@code boolean}, {@link Boolean}, {@code int}, {@link Integer}, {@code double},
-   * {@link Double}, {@link String}.
-   */
-  public synchronized <T> void set(String name, Class<T> type, T object) {
-    if (!type.isInterface()) {
-      throw new UnsupportedOperationException("Only interfaces can be bound. Received: " + type);
-    }
-    if (type.getInterfaces().length > 0) {
-      throw new UnsupportedOperationException(type + " must not extend other interfaces");
-    }
-    if (!type.isInstance(object)) {
-      throw new IllegalArgumentException(object.getClass() + " is not an instance of " + type);
-    }
-    LinkedHashMap<String, Method> methods = new LinkedHashMap<>();
-    for (Method method : type.getMethods()) {
-      if (methods.put(method.getName(), method) != null) {
-        throw new UnsupportedOperationException(method.getName() + " is overloaded in " + type);
-      }
-    }
-    set(context, name, object, methods.values().toArray());
-  }
-
-  /**
-   * Attaches to a global JavaScript object called {@code name} that implements {@code type}.
-   * {@code type} defines the interface implemented in JavaScript that will be accessible to Java.
-   * {@code type} must be an interface that does not extend any other interfaces, and cannot define
-   * any overloaded methods.
-   * <p>Methods of the interface may return {@code void} or any of the following supported argument
-   * types: {@code boolean}, {@link Boolean}, {@code int}, {@link Integer}, {@code double},
-   * {@link Double}, {@link String}.
-   */
-  public synchronized <T> T get(final String name, final Class<T> type) {
-    if (!type.isInterface()) {
-      throw new UnsupportedOperationException("Only interfaces can be proxied. Received: " + type);
-    }
-    if (type.getInterfaces().length > 0) {
-      throw new UnsupportedOperationException(type + " must not extend other interfaces");
-    }
-    LinkedHashMap<String, Method> methods = new LinkedHashMap<>();
-    for (Method method : type.getMethods()) {
-      if (methods.put(method.getName(), method) != null) {
-        throw new UnsupportedOperationException(method.getName() + " is overloaded in " + type);
-      }
+        return new Duktape(context);
     }
 
-    final long instance = get(context, name, methods.values().toArray());
-    final Duktape duktape = this;
+    private long context;
 
-    Object proxy = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{ type },
-        new InvocationHandler() {
-          @Override
-          public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            // If the method is a method from Object then defer to normal invocation.
-            if (method.getDeclaringClass() == Object.class) {
-              return method.invoke(this, args);
+    private Duktape(long context) {
+        this.context = context;
+    }
+
+    /**
+     * Evaluate {@code script} and return a result. {@code fileName} will be used in error
+     * reporting. Note that the result must be one of the supported Java types or the call will
+     * return null.
+     *
+     * @throws DuktapeException if there is an error evaluating the script.
+     */
+    public synchronized Object evaluate(String script, String fileName) {
+        return evaluate(context, script, fileName);
+    }
+
+    /**
+     * Evaluate {@code script} and return a result. Note that the result must be one of the
+     * supported Java types or the call will return null.
+     *
+     * @throws DuktapeException if there is an error evaluating the script.
+     */
+    public synchronized Object evaluate(String script) {
+        return evaluate(context, script, "?");
+    }
+
+    /**
+     * Provides {@code object} to JavaScript as a global object called {@code name}. {@code type}
+     * defines the interface implemented by {@code object} that will be accessible to JavaScript.
+     * {@code type} must be an interface that does not extend any other interfaces, and cannot define
+     * any overloaded methods.
+     * <p>Methods of the interface may return {@code void} or any of the following supported argument
+     * types: {@code boolean}, {@link Boolean}, {@code int}, {@link Integer}, {@code double},
+     * {@link Double}, {@link String}.
+     */
+    public synchronized <T> void set(String name, Class<T> type, T object) {
+        if (!type.isInterface()) {
+            throw new UnsupportedOperationException("Only interfaces can be bound. Received: " + type);
+        }
+        if (type.getInterfaces().length > 0) {
+            throw new UnsupportedOperationException(type + " must not extend other interfaces");
+        }
+        if (!type.isInstance(object)) {
+            throw new IllegalArgumentException(object.getClass() + " is not an instance of " + type);
+        }
+        LinkedHashMap<String, Method> methods = new LinkedHashMap<>();
+        for (Method method : type.getMethods()) {
+            if (methods.put(method.getName(), method) != null) {
+                throw new UnsupportedOperationException(method.getName() + " is overloaded in " + type);
             }
-            synchronized (duktape) {
-              return call(duktape.context, instance, method, args);
+        }
+        set(context, name, object, methods.values().toArray());
+    }
+
+    /**
+     * Attaches to a global JavaScript object called {@code name} that implements {@code type}.
+     * {@code type} defines the interface implemented in JavaScript that will be accessible to Java.
+     * {@code type} must be an interface that does not extend any other interfaces, and cannot define
+     * any overloaded methods.
+     * <p>Methods of the interface may return {@code void} or any of the following supported argument
+     * types: {@code boolean}, {@link Boolean}, {@code int}, {@link Integer}, {@code double},
+     * {@link Double}, {@link String}.
+     */
+    public synchronized <T> T get(final String name, final Class<T> type) {
+        if (!type.isInterface()) {
+            throw new UnsupportedOperationException("Only interfaces can be proxied. Received: " + type);
+        }
+        if (type.getInterfaces().length > 0) {
+            throw new UnsupportedOperationException(type + " must not extend other interfaces");
+        }
+        LinkedHashMap<String, Method> methods = new LinkedHashMap<>();
+        for (Method method : type.getMethods()) {
+            if (methods.put(method.getName(), method) != null) {
+                throw new UnsupportedOperationException(method.getName() + " is overloaded in " + type);
             }
-          }
+        }
 
-          @Override
-          public String toString() {
-            return String.format("DuktapeProxy{name=%s, type=%s}", name, type.getName());
-          }
-        });
-    return (T) proxy;
-  }
+        final long instance = get(context, name, methods.values().toArray());
+        final Duktape duktape = this;
 
-  /**
-   * Release the native resources associated with this object. You <strong>must</strong> call this
-   * method for each instance to avoid leaking native memory.
-   */
-  @Override public synchronized void close() {
-    if (context != 0) {
-      long contextToClose = context;
-      context = 0;
-      destroyContext(contextToClose);
+        Object proxy = Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type},
+                new InvocationHandler() {
+                    @Override
+                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                        // If the method is a method from Object then defer to normal invocation.
+                        if (method.getDeclaringClass() == Object.class) {
+                            return method.invoke(this, args);
+                        }
+                        synchronized (duktape) {
+                            return call(duktape.context, instance, method, args);
+                        }
+                    }
+
+                    @Override
+                    public String toString() {
+                        return String.format("DuktapeProxy{name=%s, type=%s}", name, type.getName());
+                    }
+                });
+        return (T) proxy;
     }
-  }
 
-  @Override protected synchronized void finalize() throws Throwable {
-    if (context != 0) {
-      Logger.getLogger(getClass().getName()).warning("Duktape instance leaked!");
+    /**
+     * Release the native resources associated with this object. You <strong>must</strong> call this
+     * method for each instance to avoid leaking native memory.
+     */
+    @Override
+    public synchronized void close() {
+        if (context != 0) {
+            long contextToClose = context;
+            context = 0;
+            destroyContext(contextToClose);
+        }
     }
-  }
 
-  private static native long createContext();
-  private static native void destroyContext(long context);
-  private static native Object evaluate(long context, String sourceCode, String fileName);
-  private static native void set(long context, String name, Object object, Object[] methods);
-  private static native long get(long context, String name, Object[] methods);
-  private static native Object call(long context, long instance, Object method, Object[] args);
+    @Override
+    protected synchronized void finalize() throws Throwable {
+        if (context != 0) {
+            Logger.getLogger(getClass().getName()).warning("Duktape instance leaked!");
+        }
+    }
 
-  /** Returns the timezone offset in seconds given system time millis. */
-  @SuppressWarnings("unused") // Called from native code.
-  @Keep // Instruct ProGuard not to strip this method.
-  private static int getLocalTimeZoneOffset(double t) {
-    int offsetMillis = TimeZone.getDefault().getOffset((long) t);
-    return (int) TimeUnit.MILLISECONDS.toSeconds(offsetMillis);
-  }
+    private static native long createContext();
+
+    private static native void destroyContext(long context);
+
+    private static native Object evaluate(long context, String sourceCode, String fileName);
+
+    private static native void set(long context, String name, Object object, Object[] methods);
+
+    private static native long get(long context, String name, Object[] methods);
+
+    private static native Object call(long context, long instance, Object method, Object[] args);
+
+    /**
+     * Returns the timezone offset in seconds given system time millis.
+     */
+    @SuppressWarnings("unused") // Called from native code.
+    @Keep // Instruct ProGuard not to strip this method.
+    private static int getLocalTimeZoneOffset(double t) {
+        int offsetMillis = TimeZone.getDefault().getOffset((long) t);
+        return (int) TimeUnit.MILLISECONDS.toSeconds(offsetMillis);
+    }
 }

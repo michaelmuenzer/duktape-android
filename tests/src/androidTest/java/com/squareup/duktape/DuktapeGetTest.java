@@ -25,6 +25,7 @@ import org.junit.runner.RunWith;
 
 import java.util.Date;
 
+import static android.support.test.InstrumentationRegistry.getInstrumentation;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
@@ -34,7 +35,7 @@ public class DuktapeGetTest {
   private Duktape duktape;
 
   @Before public void setUp() {
-    duktape = Duktape.create();
+    duktape = Duktape.create(getInstrumentation().getContext());
   }
 
   @After public void tearDown() {

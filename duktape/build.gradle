@@ -1,57 +1,58 @@
 buildscript {
-  dependencies {
-    classpath 'com.android.tools.build:gradle:2.2.2'
-  }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.3.3'
+    }
 }
 
 apply plugin: 'com.android.library'
 
 android {
-  compileSdkVersion rootProject.ext.compileSdkVersion
-  buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
 
-  defaultConfig {
-    minSdkVersion 12
-    targetSdkVersion 25
-    versionCode 1
-    versionName "1.0"
-    ndk {
-      abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+    defaultConfig {
+        minSdkVersion 12
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        ndk {
+            abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+        }
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_TOOLCHAIN=clang', '-DANDROID_STL=c++_static'
+                cFlags '-std=c99', '-fstrict-aliasing', '-DDUK_OPT_HAVE_CUSTOM_H'
+                cppFlags '-std=c++11', '-fstrict-aliasing', '-fexceptions'
+            }
+        }
+    }
+    buildTypes {
+        release {
+            externalNativeBuild {
+                cmake {
+                    cFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
+                    cppFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
+                }
+            }
+        }
+        debug {
+            externalNativeBuild {
+                cmake {
+                    cFlags '-g', '-DDEBUG'
+                    cppFlags '-g', '-DDEBUG'
+                }
+            }
+        }
     }
     externalNativeBuild {
-      cmake {
-        arguments '-DANDROID_TOOLCHAIN=clang', '-DANDROID_STL=c++_static'
-        cFlags '-std=c99', '-fstrict-aliasing', '-DDUK_OPT_HAVE_CUSTOM_H'
-        cppFlags '-std=c++11', '-fstrict-aliasing', '-fexceptions'
-      }
-    }
-  }
-  buildTypes {
-    release {
-      externalNativeBuild {
         cmake {
-          cFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
-          cppFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
+            path "src/main/jni/CMakeLists.txt"
         }
-      }
     }
-    debug {
-      externalNativeBuild {
-        cmake {
-          cFlags '-g', '-DDEBUG'
-          cppFlags '-g', '-DDEBUG'
-        }
-      }
-    }
-  }
-  externalNativeBuild {
-    cmake {
-      path "src/main/jni/CMakeLists.txt"
-    }
-  }
 }
 
 dependencies {
-  compile 'com.android.support:support-annotations:25.0.0'
+    compile 'com.android.support:support-annotations:25.0.0'
+    compile 'com.getkeepsafe.relinker:relinker:1.2.2'
 }
 
