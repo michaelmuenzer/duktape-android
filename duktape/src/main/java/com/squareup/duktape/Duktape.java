@@ -17,6 +17,8 @@ package com.squareup.duktape;
 
 import android.content.Context;
 import android.support.annotation.Keep;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 import com.getkeepsafe.relinker.ReLinker;
 
@@ -38,7 +40,20 @@ public final class Duktape implements Closeable {
      * calls to {@link #close()} on the returned instance to avoid leaking native memory.
      */
     public static Duktape create(Context appContext) {
-        ReLinker.loadLibrary(appContext, "duktape");
+        return create(appContext, null);
+    }
+
+    /**
+     * Create a new interpreter instance. Calls to this method <strong>must</strong> matched with
+     * calls to {@link #close()} on the returned instance to avoid leaking native memory.
+     */
+    public static Duktape create(@NonNull Context appContext, @Nullable ReLinker.Logger logger) {
+        String libraryName = "duktape";
+        if (logger != null) {
+            ReLinker.log(logger).loadLibrary(appContext, libraryName);
+        } else {
+            ReLinker.loadLibrary(appContext, libraryName);
+        }
 
         long context = createContext();
         if (context == 0) {
