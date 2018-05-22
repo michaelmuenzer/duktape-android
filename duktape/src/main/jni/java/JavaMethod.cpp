@@ -20,6 +20,7 @@
 #include "GlobalRef.h"
 #include "JavaExceptions.h"
 #include "JavaType.h"
+#include "../LocalFrame.h"
 
 JavaMethod::JavaMethod(JavaTypeMap& typeMap, JNIEnv* env, jobject method) {
   jclass methodClass = env->GetObjectClass(method);
@@ -32,6 +33,8 @@ JavaMethod::JavaMethod(JavaTypeMap& typeMap, JNIEnv* env, jobject method) {
   jobjectArray parameterTypes =
       static_cast<jobjectArray>(env->CallObjectMethod(method, getParameterTypes));
   const jsize numArgs = env->GetArrayLength(parameterTypes);
+  // Release any local objects allocated in this frame when we leave this scope.
+  const LocalFrame localFrame(env, numArgs);
   m_argumentLoaders.resize(numArgs);
   for (jsize i = 0; i < numArgs; ++i) {
     auto parameterType = env->GetObjectArrayElement(parameterTypes, i);
@@ -57,24 +60,6 @@ JavaMethod::JavaMethod(JavaTypeMap& typeMap, JNIEnv* env, jobject method) {
   };
 }
 
-namespace {
-
-struct LocalFrame {
-  LocalFrame(JNIEnv* env, std::size_t capacity)
-      : m_env(*env) {
-    m_env.PushLocalFrame(capacity);
-  }
-
-  ~LocalFrame() {
-    m_env.PopLocalFrame(nullptr);
-  }
-
-private:
-  JNIEnv& m_env;
-};
-
-} // anonymous namespace
-
 duk_ret_t JavaMethod::invoke(duk_context* ctx, JNIEnv* env, jobject javaThis) const {
   const auto argCount = duk_get_top(ctx);
   const auto minArgs = m_isVarArgs
@@ -94,7 +79,7 @@ duk_ret_t JavaMethod::invoke(duk_context* ctx, JNIEnv* env, jobject javaThis) co
   // Load the arguments off the stack and convert to Java types.
   // Note we're going backwards since the last argument is at the top of the stack.
   if (m_isVarArgs) {
-    args.back().l = m_argumentLoaders.back()->popArray(ctx, env, argCount - minArgs, true);
+    args.back().l = m_argumentLoaders.back()->popArray(ctx, env, argCount - minArgs, true, true);
   }
   for (ssize_t i = minArgs - 1; i >= 0; --i) {
     args[i] = m_argumentLoaders[i]->pop(ctx, env, true);

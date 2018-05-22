@@ -19,7 +19,6 @@ import android.support.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -199,7 +198,7 @@ public class DuktapeGetTest {
       fail();
     } catch (IllegalArgumentException expected) {
       assertThat(expected).hasMessage(
-          "In proxied method \"value.set\": Unsupported Java type class java.util.Date");
+          "In proxied method \"value.set\": Unsupported Java type java.util.Date");
     }
   }
 
@@ -330,7 +329,7 @@ public class DuktapeGetTest {
       printer.print(true, 42, new Date());
       fail();
     } catch (IllegalArgumentException expected) {
-      assertThat(expected).hasMessage("Unsupported Java type class java.util.Date");
+      assertThat(expected).hasMessage("Unsupported Java type java.util.Date");
     }
   }
 
@@ -356,7 +355,7 @@ public class DuktapeGetTest {
       joiner.call(", ", "Test", new Date(), 1.0);
       fail();
     } catch (Exception expected) {
-      assertThat(expected).hasMessage("Unsupported Java type class java.util.Date");
+      assertThat(expected).hasMessage("Unsupported Java type java.util.Date");
     }
   }
 
@@ -406,13 +405,12 @@ public class DuktapeGetTest {
       + "  sortNullable: function(v) { return this.sort(v); }\n"
       + "};";
 
-  @Ignore // TODO: rework array marshalling to not use the Duktape stack.
   @Test public void marshalArrayWithManyElements() {
     duktape.evaluate(SORTER_FUNCTOR);
 
     ObjectSorter sorter = duktape.get("Sorter", ObjectSorter.class);
 
-    int length = 10000; // Current safe limit is ~249.
+    int length = 100000;
     assertThat(sorter.sort(new Object[length])).hasLength(length);
   }
 
@@ -545,15 +543,14 @@ public class DuktapeGetTest {
   }
 
   interface MatrixTransposer {
-    Double[][] call(Double[][] matrix);
+    Double[][] call(Object o, Double[][] matrix);
   }
 
-  @Ignore // TODO: support N-dimensional arrays
   @Test public void twoDimensionalArrays() {
     duktape.evaluate(""
-        + "function transpose() {\n"
-        + "  return this[0].map(function(col, i) {\n"
-        + "      return this.map(function(row) {\n"
+        + "function transpose(matrix) {\n"
+        + "  return matrix[0].map(function(col, i) {\n"
+        + "      return matrix.map(function(row) {\n"
         + "        return row[i];\n"
         + "      })\n"
         + "    });\n"
@@ -568,11 +565,12 @@ public class DuktapeGetTest {
     matrix[1][1] = 4.0;
 
     Double[][] expected = new Double[2][2];
-    matrix[0][0] = 1.0;
-    matrix[1][0] = 2.0;
-    matrix[0][1] = 3.0;
-    matrix[1][1] = 4.0;
+    expected[0][0] = 1.0;
+    expected[1][0] = 2.0;
+    expected[0][1] = 3.0;
+    expected[1][1] = 4.0;
 
-    assertArrayEquals(transposer.call(matrix), expected);
+    Double[][] result = transposer.call(null, matrix);
+    assertArrayEquals(expected, result);
   }
 }

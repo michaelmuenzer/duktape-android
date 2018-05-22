@@ -1,6 +1,6 @@
 buildscript {
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.3'
+        classpath 'com.android.tools.build:gradle:3.0.1'
     }
 }
 
@@ -12,11 +12,11 @@ android {
 
     defaultConfig {
         minSdkVersion 12
-        targetSdkVersion 25
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
         }
         externalNativeBuild {
             cmake {
@@ -30,8 +30,9 @@ android {
         release {
             externalNativeBuild {
                 cmake {
-                    cFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
-                    cppFlags '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
+                    arguments '-DCMAKE_BUILD_TYPE=MinSizeRel'
+                    cFlags '-g0', '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
+                    cppFlags '-g0', '-Os', '-fomit-frame-pointer', '-DNDEBUG', '-fvisibility=hidden'
                 }
             }
         }
@@ -52,7 +53,26 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-annotations:25.0.0'
-    compile 'com.getkeepsafe.relinker:relinker:1.2.2'
+    compile 'com.android.support:support-annotations:27.1.0'
+    compile 'com.getkeepsafe.relinker:relinker:1.2.3'
 }
 
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier = 'sources'
+}
+
+task javadoc(type: Javadoc) {
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives javadocJar
+    archives sourcesJar
+}

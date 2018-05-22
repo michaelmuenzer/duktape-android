@@ -16,7 +16,6 @@
 package com.squareup.duktape;
 
 import android.content.Context;
-import android.support.annotation.Keep;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
@@ -27,19 +26,15 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.LinkedHashMap;
-import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
  * A simple EMCAScript (Javascript) interpreter.
  */
 public final class Duktape implements Closeable {
-    /**
-     * Create a new interpreter instance. Calls to this method <strong>must</strong> matched with
-     * calls to {@link #close()} on the returned instance to avoid leaking native memory.
-     */
+
     public static Duktape create(Context appContext) {
+        ReLinker.loadLibrary(appContext, "duktape");
         return create(appContext, null);
     }
 
@@ -49,6 +44,7 @@ public final class Duktape implements Closeable {
      */
     public static Duktape create(@NonNull Context appContext, @Nullable ReLinker.Logger logger) {
         String libraryName = "duktape";
+
         if (logger != null) {
             ReLinker.log(logger).loadLibrary(appContext, libraryName);
         } else {
@@ -59,7 +55,6 @@ public final class Duktape implements Closeable {
         if (context == 0) {
             throw new OutOfMemoryError("Cannot create Duktape instance");
         }
-
         return new Duktape(context);
     }
 
@@ -196,14 +191,4 @@ public final class Duktape implements Closeable {
     private static native long get(long context, String name, Object[] methods);
 
     private static native Object call(long context, long instance, Object method, Object[] args);
-
-    /**
-     * Returns the timezone offset in seconds given system time millis.
-     */
-    @SuppressWarnings("unused") // Called from native code.
-    @Keep // Instruct ProGuard not to strip this method.
-    private static int getLocalTimeZoneOffset(double t) {
-        int offsetMillis = TimeZone.getDefault().getOffset((long) t);
-        return (int) TimeUnit.MILLISECONDS.toSeconds(offsetMillis);
-    }
 }
